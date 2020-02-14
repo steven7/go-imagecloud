@@ -1,0 +1,27 @@
+{
+
+    "port"     : 3000,
+    "env"      : "dev",
+    "pepper"   : "secret-random-string",
+    "hmac_key" : "secret-hmac-key",
+    "database" : {
+        "host"     : "localhost",
+        "port"     : 5432,
+        "user"     : "postgres",
+        "password" : "postgres",
+        "name"     : "lenslocked_dev"
+    },
+    "mailgun" : {
+        "api_key"        : "55fdc1daddad88003b1b57ad7fd6c9a4-e51d0a44-8be8f704",
+        "public_api_key" : "123",
+        "domain"         : "https://api.mailgun.net/v3/sandboxf77475d6db1f435f913c7192ec2d4225.mailgun.org"
+    },
+    "dropbox" :  {
+     "id" :         "zk565ry2vhd4klr",
+     "secret" :     "22qg2b7o8kejg8p",
+     "auth_url" :   "https://www.dropbox.com/oath2/authorize",
+     "token_url" :  "https://api.dropbox.com/oath2/token",
+     "redirect_url": "http://localhost:3000/oauth/dropbox/callback"
+    }
+
+}
