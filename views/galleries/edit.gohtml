@@ -26,6 +26,12 @@
         </div>
     </div>
     <div class="row">
+        <div class="col-md-10 col-md-offset-1" id="dropbox-button-container">
+            <!-- DBX Button -->
+            {{template "dropboxImageForm" .}}
+        </div>
+    </div>
+    <div class="row">
         <div class="col-md-10 col-md-offset-1">
             <h3>Dangerous buttons...</h3>
             <hr>
@@ -35,6 +41,40 @@
         </div>
     </div>
 {{end}}
+
+{{define "javascript-footer"}}
+
+<script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs"
+        data-app-key="e0xrb5zsgxaaxl5"></script>
+
+<script>
+var dbxForm = document.getElementById("dropbox-image-form");
+options = {
+
+    // Required. Called when a user selects an item in the Chooser.
+    success: function(files) {
+        // alert("Here's the file link: " + files[0].link)
+        for (i = 0; i < files.length; i++) {
+            var input = document.createElement("input");
+            input.type = "hidden";
+            input.name = "files";
+            input.value = files[i].link;
+            dbxForm.appendChild(input)
+        }
+        dbxForm.submit()
+    },
+    linkType:  "direct",
+    multiselect:  true,
+    extensions: ['images'], //'.pdf', '.doc', '.docx'],
+    folderselect: false, // or true
+    // sizeLimit: 1024, // or any positive number
+};
+
+var button = Dropbox.createChooseButton(options);
+document.getElementById("dropbox-button-container").appendChild(button);
+</script>
+{{end}}
+
 
 {{define "editGalleryForm"}}
     <form action="/galleries/{{.ID}}/update" method="POST"
@@ -53,6 +93,7 @@
     </form>
 {{end}}
 
+
 {{define "deleteGalleryForm"}}
     <form action="/galleries/{{.ID}}/delete" method="POST"
           class="form-horizontal">
@@ -62,6 +103,14 @@
                 <button type="submit" class="btn btn-danger">Delete</button>
             </div>
         </div>
+    </form>
+{{end}}
+
+{{define "dropboxImageForm"}}
+    <form action="/galleries/{{.ID}}/images/link" method="POST"
+          enctype="multipart/form-data" class="form-horizontal" id="dropbox-image-form">
+        {{csrfField}}
+        <!-- Filled in with Dropbox js -->
     </form>
 {{end}}
 

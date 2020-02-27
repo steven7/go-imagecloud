@@ -13,7 +13,7 @@ type Config struct {
 	HMACKey  string 		`json:"hmac_key"`
 	Database PostgresConfig `json:"database"`
 	Mailgun  MailgunConfig  `json:"mailgun"`
-	Dropbox  OAuthConfig	`json:"dropbox"`
+	Dropbox  OAuthConfig    `json:"dropbox"`
 }
 
 type PostgresConfig struct {
@@ -24,18 +24,6 @@ type PostgresConfig struct {
 	Name 	 string `json:"name"`
 }
 
-type MailgunConfig struct {
-	APIKey       string `json:"api_key"`
-	PublicAPIKey string `json:"public_api_key"`
-	Domain       string `json:"domain"`
-}
-
-type OAuthConfig struct {
-	ID 		 string `json:"id"`
-	Secret   string `json:"secret"`
-	AuthURL  string `json:"auth_url"`
-	TokenURL string `json:"token_url"`
-}
 
 func (c PostgresConfig) Dialect () string {
 	return "postgres"
@@ -53,6 +41,16 @@ func (c PostgresConfig) ConnectionInfo() string {
 		c.Password, c.Name)
 }
 
+func DefaultConfig() Config {
+	return Config{
+		Port:     3000,
+		Env:      "dev",
+		Pepper:   "secret-random-string",
+		HMACKey:  "secret-hmac-key",
+		Database: DefaultPostgresConfig(),
+	}
+}
+
 func DefaultPostgresConfig() PostgresConfig {
 	return PostgresConfig{
 		Host:     "localhost",
@@ -63,25 +61,26 @@ func DefaultPostgresConfig() PostgresConfig {
 	}
 }
 
-//func DefaultPostgresConfigProd() PostgresConfig {
-//	return PostgresConfig{
-//		Host:     "localhost",
-//		Port:     5432,
-//		User:     "postgres",
-//		Password: "postgres",
-//		Name:     "imagecloud_prod",
-//	}
-//}
+type MailgunConfig struct {
+	APIKey       string `json:"api_key"`
+	PublicAPIKey string `json:"public_api_key"`
+	Domain       string `json:"domain"`
+}
+
+type OAuthConfig struct {
+	ID       string `json:"id"`
+	Secret   string `json:"secret"`
+	AuthURL  string `json:"auth_url"`
+	TokenURL string `json:"token_url"`
+}
 
 
-func DefaultConfig() Config {
-	return Config{
-		Port:     3000,
-		Env:      "dev",
-		Pepper:   "secret-random-string",
-		HMACKey:  "secret-hmac-key",
-		Database: DefaultPostgresConfig(),
-	}
+
+
+
+
+func (c Config) IsProd() bool {
+	return c.Env == "prod"
 }
 
 //func DefaultConfigProd() Config {
@@ -93,10 +92,6 @@ func DefaultConfig() Config {
 //		Database: DefaultPostgresConfigProd(),
 //	}
 //}
-
-func (c Config) IsProd() bool {
-	return c.Env == "prod"
-}
 
 
 
@@ -133,7 +128,7 @@ func LoadConfig(configReq bool) Config {
 		panic(err)
 	}
 	// If all goes well, return the loaded config.
-	// fmt.Println("Sucessfully loaded .config")
+	fmt.Println("Sucessfully loaded .config")
 	return c
 }
 

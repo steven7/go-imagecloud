@@ -22,7 +22,7 @@ var (
 func NewView(layout string, files ...string) *View {
 	addTemplatePath(files)
 	addTemplateExt(files)
-	files = append(files, layoutFiles()...)
+	files = append(layoutFiles(), files...)
 	// We are changing how we create our templates, calling
 	// New("") to give us a template that we can add a function to
 	// before finally passing in files to parse as part of the template.

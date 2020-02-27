@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
+	"sync"
 
 	"github.com/gorilla/mux"
 
@@ -201,6 +203,90 @@ func (g *Galleries) ImageUpload(w http.ResponseWriter, r *http.Request) {
 	// render the EditView and replace it with the following.
 	url, err := g.r.Get(EditGallery).URL("id", fmt.Sprintf("%v", gallery.ID))
 	if err != nil {
+		http.Redirect(w, r, "/galleries", http.StatusFound)
+		return
+	}
+	http.Redirect(w, r, url.Path, http.StatusFound)
+}
+
+// POST /galleries/:id/link
+func (g *Galleries) ImageViaLink(w http.ResponseWriter, r *http.Request) {
+	gallery, err := g.galleryByID(w, r)
+	if err != nil {
+		return
+	}
+	user := context.User(r.Context())
+	if gallery.UserID != user.ID {
+		http.Error(w, "Gallery not found", http.StatusNotFound)
+		return
+	}
+	var vd views.Data
+	vd.Yield = gallery
+	if err := r.ParseForm(); err != nil {
+		// If we can't parse the form just render an error alert on the
+		// edit gallery page.
+		vd.SetAlert(err)
+		g.EditView.Render(w, r, vd)
+		return
+	}
+	files := r.PostForm["files"]
+
+	var wg sync.WaitGroup
+	wg.Add(len(files))
+	for _, fileURL := range files {
+		// do this with go routine
+		go func(url string) {
+			defer wg.Done()
+			resp, err := http.Get(url)
+			if err != nil {
+				log.Println("Failed to download the image form:", url)
+				return
+			}
+			defer resp.Body.Close()
+			pieces := strings.Split(url, "/")
+			filename := pieces[len(pieces) - 1]
+			if err := g.is.Create(gallery.ID, resp.Body, filename); err != nil {
+				panic(err)
+			}
+		} (fileURL) // () meanes execute go routine
+	}
+	wg.Wait()
+
+	//err = r.ParseMultipartForm(maxMultipartMem)
+	//if err != nil {
+	//	// If we can't parse the form just render an error alert on the
+	//	// edit gallery page.
+	//	vd.SetAlert(err)
+	//	g.EditView.Render(w, r, vd)
+	//	return
+	//}
+	//
+	//// Iterate over uploaded files to process them.
+	//files := r.MultipartForm.File["images"]
+	//for _, f := range files {
+	//	// Open the uploaded file
+	//	file, err := f.Open()
+	//	if err != nil {
+	//		vd.SetAlert(err)
+	//		g.EditView.Render(w, r, vd)
+	//		return
+	//	}
+	//	defer file.Close()
+	//
+	//	// Create a image which also creates destination file
+	//	err = g.is.Create(gallery.ID, file, f.Filename)
+	//	if err != nil {
+	//		vd.SetAlert(err)
+	//		g.EditView.Render(w, r, vd)
+	//		return
+	//	}
+	//}
+
+	//Remove the code used to create a success alert and
+	//render the EditView and replace it with the following.
+	url, err := g.r.Get(EditGallery).URL("id", fmt.Sprintf("%v", gallery.ID))
+	if err != nil {
+		log.Println(err)
 		http.Redirect(w, r, "/galleries", http.StatusFound)
 		return
 	}

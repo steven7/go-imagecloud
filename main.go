@@ -9,7 +9,6 @@ import (
 	"go-imagecloud/models"
 	"go-imagecloud/rand"
 	"golang.org/x/oauth2"
-
 	//"html/template"
 	"net/http"
 
@@ -28,7 +27,6 @@ func main() {
 	flag.Parse()
 
 	cfg := LoadConfig(*boolPtr)
-	fmt.Println(cfg.Dropbox)
 	dbCfg := cfg.Database
 	services, err := models.NewServices(
 		models.WithGorm(dbCfg.Dialect(), dbCfg.ConnectionInfo()),
@@ -39,7 +37,9 @@ func main() {
 		models.WithUser(cfg.Pepper, cfg.HMACKey),
 		models.WithGallery(),
 		models.WithImage(),
+		models.WithOauth(),
 	)
+
 	if err != nil {
 		panic(err)
 	}
@@ -59,6 +59,18 @@ func main() {
 	usersC := controllers.NewUsers(services.User, nil)
 	galleriesC := controllers.NewGalleries(services.Gallery, services.Image, r)
 
+	//
+	configs := make(map[string]*oauth2.Config)
+	configs[models.OAuthDropbox] = &oauth2.Config{
+		ClientID: 	  cfg.Dropbox.ID,
+		ClientSecret: cfg.Dropbox.Secret,
+		Endpoint: oauth2.Endpoint{
+			AuthURL  :  cfg.Dropbox.AuthURL,
+			TokenURL :  cfg.Dropbox.TokenURL,
+		},
+		RedirectURL: "http://localhost:3000/oauth/dropbox/callback",
+	}
+	oauthsC := controllers.NewOAuths(services.OAuth ,configs)
 	//services.DestructiveReset()
 
 	// Middleware
@@ -77,30 +89,6 @@ func main() {
 		User: userMw,
 	}
 
-	// db
-	dbxOAuth := &oauth2.Config{
-		ClientID: cfg.Dropbox.ID,
-		ClientSecret: cfg.Dropbox.Secret,
-		Endpoint: oauth2.Endpoint{
-			AuthURL :   cfg.Dropbox.AuthURL,
-			TokenURL :  cfg.Dropbox.TokenURL,
-		},
-		RedirectURL: "http://localhost:3000/oauth/dropbox/callback",
-	}
-
-	dbxRedirect := func(w http.ResponseWriter, r *http.Request) {
-		state :=  csrf.Token(r)
-		url := dbxOAuth.AuthCodeURL(state)
-		fmt.Println(state)
-		http.Redirect(w, r, url, http.StatusFound)
-	}
-	r.HandleFunc("/oauth/dropbox/connect", dbxRedirect)
-	dbxCallback := func(w http.ResponseWriter, r *http.Request) {
-		r.ParseForm()
-		fmt.Println(w, "code: ",  r.FormValue("code"), " state: ", r.FormValue("state"))
-	}
-	r.HandleFunc("/oauth/dropbox/callback", dbxCallback)
-
 	r.Handle("/", staticC.Home).Methods("GET")
 	r.Handle("/contact", staticC.Contact).Methods("GET")
 	r.Handle("/faq", staticC.Faq).Methods("GET")
@@ -110,6 +98,15 @@ func main() {
 	r.HandleFunc("/login", usersC.Login).Methods("POST")
 	r.Handle("/logout", requireUserMw.ApplyFn(usersC.Logout)).Methods("POST")
 	r.HandleFunc("/cookietest", usersC.CookieTest).Methods("GET")
+
+	// dropbox routes
+	r.HandleFunc("/oauth/{service:[a-z]+}/connect", requireUserMw.ApplyFn(oauthsC.Connect))
+	r.HandleFunc("/oauth/{service:[a-z]+}/callback", requireUserMw.ApplyFn(oauthsC.Callback))
+	r.HandleFunc("/oauth/{service:[a-z]+}/test", requireUserMw.ApplyFn(oauthsC.DropboxTest))
+
+	//r.HandleFunc("/oauth/dropbox/connect",requireUserMw.ApplyFn(oauthsC.Connect))
+	//r.HandleFunc("/oauth/dropbox/callback", requireUserMw.ApplyFn(oauthsC.Callback))
+	//r.HandleFunc("/oauth/dropbox/test", requireUserMw.ApplyFn(oauthsC.Test))
 
 	// This will assign the page to the nor found handler
 	var h http.Handler = http.Handler(staticC.NotFound)
@@ -145,7 +142,9 @@ func main() {
 	r.HandleFunc("/galleries/{id:[0-9]+}/images",
 		requireUserMw.ApplyFn(galleriesC.ImageUpload)).
 		Methods("POST")
-
+	r.HandleFunc("/galleries/{id:[0-9]+}/images/link",
+		requireUserMw.ApplyFn(galleriesC.ImageViaLink)).
+		Methods("POST")
 
 	// Image routes
 	imageHandler := http.FileServer(http.Dir("./images/"))
